@@ -243,6 +243,22 @@ export const CSS = `
   touch-action: pan-y;
 }
 .af-card-open:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.af-card-options {
+  position: absolute; top: 0.5rem; right: 0.5rem; z-index: 2;
+  display: grid; place-items: center; width: 44px; height: 44px;
+  border: 1px solid var(--border); border-radius: 0.5rem;
+  background: var(--surface); color: var(--text); cursor: pointer;
+}
+.af-card-actions {
+  position: absolute; top: 3.5rem; right: 0.5rem; z-index: 3;
+  max-width: calc(100% - 1rem); padding: 0.375rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem;
+}
+.af-card-actions button { min-height: 44px; padding: 0.5rem 0.75rem; border: 0; border-radius: 0.25rem; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.af-card-actions button:hover, .af-card-options:hover { background: var(--surface2); }
+.af-card-actions button:focus-visible, .af-card-options:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.af-card-actions button:disabled { opacity: 0.6; cursor: wait; }
+.af-card-actions p { margin: 0.375rem; max-width: 28ch; font-size: 0.8125rem; color: var(--text); }
 .af-card-skeleton { cursor: default; }
 .af-skeleton-lines { display: flex; flex: 1; flex-direction: column; gap: 0.625rem; }
 /* /mobius-ui:Card */

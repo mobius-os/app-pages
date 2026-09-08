@@ -1,6 +1,6 @@
 # Pages
 
-Pages is the Möbius catalog for self-contained pages — interactive mockups, visualizations, explainers, and polished documents — created by the in-product agent. (The app's slug and storage tree keep the historical name `artifacts`; a Project's build output is the thing Möbius calls an artifact.) It gives owners one place to browse their pages, preview or inspect each version, copy or download its HTML, return to the originating chat, and publish a stable public snapshot.
+Pages is the Möbius catalog for self-contained pages — interactive mockups, visualizations, explainers, and polished documents — created by the in-product agent. The installed app slug is `pages`; its upstream catalog manifest id, record paths, and intent payload keep the historical word `artifacts`. A Project's build output is the thing Möbius calls an artifact. Pages gives owners one place to browse their pages, preview or inspect each version, copy or download its HTML, return to the originating chat, and publish a stable public snapshot.
 
 Pages ships an always-on prompt fragment that nudges the agent to offer visuals when they would help.
 
@@ -13,7 +13,7 @@ Pages ships an always-on prompt fragment that nudges the agent to offer visuals 
 - Resolves origin chat titles through the redacted chat-log summary permission.
 - Stages a selected version through Möbius publishing, tracks its stable public URL, updates it on demand, and unpublishes it.
 - Injects an optional per-artifact JSON storage API: owners can write from the current preview, while public shares can read the same capped data without receiving app credentials.
-- Handles `/shell/?app=artifacts&intent=artifact:<id>` intents and provides chat handoffs in both directions.
+- Handles `/shell/?app=pages&intent=artifact:<id>` intents and provides chat handoffs in both directions.
 
 Version 0.5.0 adds owner-write/public-read artifact persistence. Stored version
 files remain immutable; the app injects the appropriate preview or published

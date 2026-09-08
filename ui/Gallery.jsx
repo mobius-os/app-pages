@@ -67,6 +67,7 @@ export function Gallery({ appId, storage, onOpen, inactive = false }) {
   const [artifacts, setArtifacts] = useState([])
   const [iconOk, setIconOk] = useState(true)
   const [shares, setShares] = useState(new Map())
+  const [importable, setImportable] = useState(new Set())
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState('')
   const loadId = useRef(0)
@@ -97,6 +98,10 @@ export function Gallery({ appId, storage, onOpen, inactive = false }) {
       setShares((current) => reuseRecordMap(current, nextShares))
       setStatus('ready')
       setError('')
+      // Projects enriches the gallery; a missing or older host never blocks Pages.
+      const sources = await window.mobius?.projects?.importSources?.().catch(() => []) || []
+      if (id !== loadId.current) return
+      setImportable(new Set(sources.map(source => String(source.id))))
     } catch (cause) {
       if (id !== loadId.current) return
       console.error('Could not load the artifact gallery.', cause)
@@ -178,6 +183,13 @@ export function Gallery({ appId, storage, onOpen, inactive = false }) {
                         shared={shares.get(artifact.id)?.published === true}
                         storage={storage}
                         onOpen={onOpen}
+                        canImport={importable.has(String(artifact.id))}
+                        onImport={async () => {
+                          try {
+                            await window.mobius.projects.importSource(artifact.id)
+                            setImportable(current => new Set([...current].filter(id => id !== String(artifact.id))))
+                          } finally { load() }
+                        }}
                       />
                     ))}
                   </div>
