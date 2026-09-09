@@ -88,21 +88,23 @@ are unavailable—they never pretend to save.
 ## Where pages live
 
 Pages are files in the **Pages app's storage tree**:
-`/data/apps/<ARTIFACTS_APP_ID>/` where `ARTIFACTS_APP_ID` is the app's
-**numeric id** (its slug remains `artifacts`). Resolve it fresh every time — it changes if the app is ever
+`/data/apps/<PAGES_APP_ID>/` where `PAGES_APP_ID` is the app's
+**numeric id**. The installed app slug is `pages`; `artifacts` remains only the
+upstream catalog manifest id and the durable record/intent vocabulary. Resolve
+the numeric id fresh every time — it changes if the app is ever
 reinstalled, so never hardcode it:
 
 ```bash
-ARTIFACTS_APP_ID=$(curl -fsS -H "Authorization: Bearer $AGENT_TOKEN" \
+PAGES_APP_ID=$(curl -fsS -H "Authorization: Bearer $AGENT_TOKEN" \
   "$API_BASE_URL/api/apps/" | python3 -c \
-  "import sys,json; print(next((a['id'] for a in json.load(sys.stdin) if a.get('slug')=='artifacts'),''))")
+  "import sys,json; print(next((a['id'] for a in json.load(sys.stdin) if a.get('slug')=='pages'),''))")
 ```
 
 If it comes back empty, the Pages app is not installed — tell the partner
 to install it from the App Store, and offer to build the page as a plain
 mini-app instead. **Do not confuse the storage tree with
-`/data/apps/artifacts/`** — that slug-named directory is the viewer app's
-source code; never write pages there.
+`/data/apps/pages/`** — that slug-named directory is the viewer app's source
+code; never write page records there.
 
 Inside the storage tree, an ordinary page uses two paths. A format skill
 may additionally preserve editable inputs under the optional third path:
@@ -110,13 +112,14 @@ may additionally preserve editable inputs under the optional third path:
 ```
 artifacts/<artifact_id>.json      # the record — metadata + version index
 versions/<artifact_id>/v<N>.html  # one immutable file per version
-sources/<artifact_id>/...         # optional editable inputs for Project import
+sources/<artifact_id>/...         # durable builder source, optionally managed by Projects
 ```
 
-Keep `sources/` absent for an ordinary self-contained page. Use it
-only when an installed format skill explicitly defines how to recreate an
-editable Project (for example, LaTeX source behind a compiled document). In
-that case the record may include:
+Keep `sources/` absent for an ordinary self-contained page. Use it only
+when the Web Studio or LaTeX builder skill owns a durable editable source tree.
+Only these explicitly attributed builder outputs are eligible for **Add to
+Projects**; ordinary mockups, diagrams, and reports are not. Do not infer a
+builder from a title, extension, or the HTML preview. The record includes:
 
 ```json
 {
@@ -129,14 +132,25 @@ that case the record may include:
 }
 ```
 
-`template_id` must name an installed Project type. Each `storage_path` is
-relative to the Pages app's numeric storage root and each `path` is the
-editable destination inside the new Project. List only real source inputs,
-never generated output, private data, symlinks, or unrelated files. Projects
-imports these as an independent copy (**Projects → New → Import existing**);
-later Project edits do not mutate the page or its source snapshot. When
-iterating a page, preserve existing `project_import` metadata unless the source
-snapshot is deliberately updated.
+`template_id` is `latex:document` or `webstudio:website` and must name an
+installed Project template. Each `storage_path` is exactly
+`sources/<artifact_id>/<path>` relative to the numeric Pages storage root.
+List real editable source inputs needed to rebuild, never generated output,
+private data, symlinks, or unrelated files. Write source inputs before
+atomically publishing the record.
+
+**Add to Projects manages the existing source tree; it never creates a second
+editable copy.** The source directory remains the same before and after adding
+it. Later edits use that source and publish a new build/preview; existing Page
+versions are immutable snapshots and must not be rewritten. Preserve
+`project_import` when iterating, updating its file list to match deliberate
+source changes. Never detach or relocate a managed source tree while editing.
+A builder output already managed by a Project is not offered again. In Pages,
+use the page card's actions button, right-click, or long-press to choose
+**Add to Projects** when eligible. Do not
+retroactively label an old page without verifying its builder and complete
+editable source. Collaboration via an agent need not require a Project;
+Projects adds the source, Git, and collaborator management interface.
 
 A page can also carry an optional `related_apps` array when it is
 specifically about an existing Möbius app — for example, a redesign mockup,
@@ -173,7 +187,7 @@ for public sharing. Sharing is the partner's action, taken in the app.
 
 ```bash
 AID="tip-calculator-$(openssl rand -hex 2)"
-D="/data/apps/$ARTIFACTS_APP_ID"
+D="/data/apps/$PAGES_APP_ID"
 NOW=$(date -u +%FT%TZ)
 TITLE="Tip Calculator"
 DESC="Split a bill and compute per-person tips."
@@ -208,7 +222,7 @@ PY
 
 Stamp `$CHAT_ID` exactly as shown — it is how the partner gets the
 "open the chat this came from" link. If you prefer HTTP, the equivalent is
-`PUT $API_BASE_URL/api/storage/apps/$ARTIFACTS_APP_ID/<path>` with
+`PUT $API_BASE_URL/api/storage/apps/$PAGES_APP_ID/<path>` with
 `Bearer $AGENT_TOKEN` (`.html` → `Content-Type: text/html` raw body; `.json` →
 `application/json`, the body IS the document, no envelope). The HTTP PUT path
 writes atomically on the server and enforces the storage quota, so it is the
@@ -302,7 +316,7 @@ offline.
 End your reply with the page link — the shell opens it in place:
 
 ```
-[Open "Tip Calculator" →](/shell/?app=artifacts&intent=artifact:<artifact_id>)
+[Open "Tip Calculator" →](/shell/?app=pages&intent=artifact:<artifact_id>)
 ```
 
 Also send the durable notification so the partner can tap in later:
@@ -312,7 +326,7 @@ curl -fsS -X POST "$API_BASE_URL/api/notifications/send" \
   -H "Authorization: Bearer $AGENT_TOKEN" -H "Content-Type: application/json" \
   -d '{"title": "Page ready", "body": "Tip Calculator is ready to open and share.",
        "source_id": "'"$CHAT_ID"'",
-       "target": "/shell/?app=artifacts&intent=artifact:'"$AID"'"}'
+       "target": "/shell/?app=pages&intent=artifact:'"$AID"'"}'
 ```
 
 ---

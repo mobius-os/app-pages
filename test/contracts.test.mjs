@@ -130,6 +130,20 @@ test('gallery preview enrichment cannot make the artifact catalogue unavailable'
   assert.match(thumbnail, /\.catch\(\(\) => \{[\s\S]*status: 'fallback'/)
 })
 
+test('eligible builder pages expose one accessible Add to Projects action', async () => {
+  const gallery = await readSource('ui/Gallery.jsx')
+  const card = await readSource('ui/ArtifactCard.jsx')
+
+  assert.match(gallery, /projects\?\.importSources\?\.\(\)\.catch\(\(\) => \[\]\)/)
+  assert.match(gallery, /canImport=\{importable\.has\(String\(artifact\.id\)\)\}/)
+  assert.match(gallery, /await window\.mobius\.projects\.importSource\(artifact\.id\)/)
+  assert.match(card, /aria-label=\{`Actions for \$\{artifact\.title \|\| 'page'\}`\}/)
+  assert.match(card, /onContextMenu=\{openMenu\}/)
+  assert.match(card, /setTimeout\(\(\) => \{ suppressClick\.current = true; setMenu\(true\) \}, 550\)/)
+  assert.match(card, /Add to Projects/)
+  assert.match(card, /event\.key === 'Escape'/)
+})
+
 test('artifact previews keep their placeholder until the staged frame has painted', async () => {
   const detailFrame = await readSource('preview/ArtifactFrame.jsx')
   const thumbnail = await readSource('ui/ArtifactThumbnail.jsx')
