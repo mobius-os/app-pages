@@ -48,11 +48,11 @@ test('friendlyLoadError maps technical failures to actionable gallery copy', () 
   )
   assert.equal(
     friendlyLoadError(new Error('Could not list artifacts/ (503).')),
-    'Artifacts are temporarily unavailable. Try again in a moment.',
+    'Pages are temporarily unavailable. Try again in a moment.',
   )
   assert.equal(
     friendlyLoadError(new Error('Unexpected response shape')),
-    'Artifacts couldn\u2019t be loaded. Try again.',
+    'Pages couldn\u2019t be loaded. Try again.',
   )
 })
 

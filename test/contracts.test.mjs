@@ -56,7 +56,7 @@ test('artifact detail chrome uses the same wide, left-led composition as map det
   assert.match(theme, /\.af-detail-header\s*\{ width:\s*min\(100%,\s*74rem\); \}/)
 })
 
-test('manifest keeps the Artifacts system prompt wiring', async () => {
+test('manifest keeps the Pages system prompt wiring', async () => {
   const manifest = JSON.parse(await readSource('mobius.json'))
   assert.equal(manifest.system_app, true)
   assert.equal(manifest.system_prompt, 'artifacts-core.md')

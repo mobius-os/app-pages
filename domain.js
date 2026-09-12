@@ -41,9 +41,9 @@ export function friendlyLoadError(error) {
     return 'This artifact catalog is too large to load. Remove unused artifacts and try again.'
   }
   if (status !== null && status >= 500) {
-    return 'Artifacts are temporarily unavailable. Try again in a moment.'
+    return 'Pages are temporarily unavailable. Try again in a moment.'
   }
-  return 'Artifacts couldn\u2019t be loaded. Try again.'
+  return 'Pages couldn\u2019t be loaded. Try again.'
 }
 
 export function slugifyTitle(value) {
