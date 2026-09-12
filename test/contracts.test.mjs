@@ -56,11 +56,19 @@ test('artifact detail chrome uses the same wide, left-led composition as map det
   assert.match(theme, /\.af-detail-header\s*\{ width:\s*min\(100%,\s*74rem\); \}/)
 })
 
-test('manifest keeps the Artifacts system prompt wiring', async () => {
+test('manifest keeps the Pages system prompt wiring', async () => {
   const manifest = JSON.parse(await readSource('mobius.json'))
+  assert.equal(manifest.id, 'pages')
+  assert.equal(manifest.previous_id, 'artifacts')
+  assert.equal(
+    manifest.previous_manifest_url,
+    'https://raw.githubusercontent.com/mobius-os/app-artifacts/main/mobius.json',
+  )
+  assert.equal(manifest.homepage, 'https://github.com/mobius-os/app-pages')
   assert.equal(manifest.system_app, true)
-  assert.equal(manifest.system_prompt, 'artifacts-core.md')
-  assert.ok(manifest.source_files.includes('artifacts-core.md'))
+  assert.equal(manifest.system_prompt, 'pages-core.md')
+  assert.deepEqual(manifest.skills, ['pages.md'])
+  assert.ok(manifest.source_files.includes('pages-core.md'))
 })
 
 test('storage bridge identifies only the mounted opaque preview frame', async () => {

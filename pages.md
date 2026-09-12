@@ -11,11 +11,9 @@ pages are stored and linked. Read this before building anything you would call
 a canvas, visualization, mockup, report, or shareable page — and before
 iterating on one that already exists.
 
-Naming: the Pages app's storage tree and ids still use the word `artifact`
-(`artifacts/<artifact_id>.json`, `intent=artifact:<id>`). That is durable
-storage identity, not product vocabulary. In the partner's words a Pages item is
-a **page**; an **artifact** is a Project's build output (a compiled PDF, a
-built website) and lives with its Project, not here.
+In the partner's words, an item in this app is a **page**. A Project's
+compiled or deployed build output is an **artifact** and lives with its Project,
+not here.
 
 ---
 
@@ -89,8 +87,7 @@ are unavailable—they never pretend to save.
 
 Pages are files in the **Pages app's storage tree**:
 `/data/apps/<PAGES_APP_ID>/` where `PAGES_APP_ID` is the app's
-**numeric id**. The installed app slug is `pages`; `artifacts` remains only the
-upstream catalog manifest id and the durable record/intent vocabulary. Resolve
+**numeric id**. The installed app slug and package id are both `pages`. Resolve
 the numeric id fresh every time — it changes if the app is ever
 reinstalled, so never hardcode it:
 

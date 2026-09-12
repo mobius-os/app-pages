@@ -44,7 +44,7 @@ test('preview text is escaped and publication metadata names one image', () => {
     image_alt: 'A thoughtful launch brief — shared artifact, version 3',
     image_width: 1200,
     image_height: 630,
-    site_name: 'Möbius Artifacts',
+    site_name: 'Möbius Pages',
   })
 })
 

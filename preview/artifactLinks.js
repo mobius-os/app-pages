@@ -5,7 +5,7 @@ import { injectArtifactScript } from '../domain.js'
  *
  * A srcDoc document inherits the embedding app-frame URL as its base URL.
  * Native `href="#section"` clicks therefore replace the artifact with a
- * nested copy of the Artifacts frame instead of scrolling the artifact. That
+ * nested copy of the Pages frame instead of scrolling the artifact. That
  * navigation also adds an invisible entry to the browser's joint session
  * history, which can delay the shell interaction that follows it.
  *

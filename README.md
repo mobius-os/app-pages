@@ -1,6 +1,6 @@
 # Pages
 
-Pages is the Möbius catalog for self-contained pages — interactive mockups, visualizations, explainers, and polished documents — created by the in-product agent. The installed app slug is `pages`; its upstream catalog manifest id, record paths, and intent payload keep the historical word `artifacts`. A Project's build output is the thing Möbius calls an artifact. Pages gives owners one place to browse their pages, preview or inspect each version, copy or download its HTML, return to the originating chat, and publish a stable public snapshot.
+Pages is the Möbius catalog for self-contained pages — interactive mockups, visualizations, explainers, and polished documents — created by the in-product agent. Its package id is `pages` and its canonical repository is `mobius-os/app-pages`. A Project's build output is the thing Möbius calls an artifact. Pages gives owners one place to browse their pages, preview or inspect each version, copy or download its HTML, return to the originating chat, and publish a stable public snapshot.
 
 Pages ships an always-on prompt fragment that nudges the agent to offer visuals when they would help.
 

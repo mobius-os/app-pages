@@ -70,7 +70,7 @@ export function artifactLinkPreviewMetadata(record, version) {
     image_alt: artifactLinkPreviewAlt(record, version),
     image_width: ARTIFACT_PREVIEW_WIDTH,
     image_height: ARTIFACT_PREVIEW_HEIGHT,
-    site_name: 'Möbius Artifacts',
+    site_name: 'Möbius Pages',
   }
 }
 
