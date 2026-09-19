@@ -92,7 +92,7 @@ the numeric id fresh every time — it changes if the app is ever
 reinstalled, so never hardcode it:
 
 ```bash
-PAGES_APP_ID=$(mapi /api/apps/ | python3 -c \
+PAGES_APP_ID=$(mapi -f /api/apps/ | python3 -c \
   "import sys,json; print(next((a['id'] for a in json.load(sys.stdin) if a.get('slug')=='pages'),''))")
 ```
 
@@ -318,7 +318,7 @@ End your reply with the page link — the shell opens it in place:
 Also send the durable notification so the partner can tap in later:
 
 ```bash
-mapi -X POST /api/notifications/send \
+mapi -f -X POST /api/notifications/send \
   -H "Content-Type: application/json" \
   -d '{"title": "Page ready", "body": "Tip Calculator is ready to open and share.",
        "source_id": "'"$CHAT_ID"'",
