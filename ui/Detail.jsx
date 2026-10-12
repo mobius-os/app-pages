@@ -21,6 +21,7 @@ import { ArtifactOptionsSheet, DeleteSheet, ShareSheet } from './ShareSheet.jsx'
 import { copyPlainText } from './clipboard.js'
 import { createDetailSync } from './detailSync.js'
 import { removePageStorage } from './deletePage.js'
+import { pollWhileVisible } from './adaptivePoll.js'
 import {
   ArrowLeftIcon,
   CodeIcon,
@@ -85,7 +86,17 @@ export function Detail({ artifactId, storage, token, onPreviewFrame, onClose, on
     setSelectedVersion(null)
     setViewMode('preview')
     setSourceState({ key: '', status: 'idle', html: '', message: '' })
+    // Set when the record or share differs from the last one seen, so the
+    // poll keeps its fast cadence only while the page is actually changing.
+    const lastSeen = {}
+    let observedChange = false
+    const noteObserved = (kind, value) => {
+      const seen = JSON.stringify(value ?? null)
+      if (lastSeen[kind] !== seen) observedChange = true
+      lastSeen[kind] = seen
+    }
     const acceptRecord = (value) => {
+      noteObserved('record', value)
       setRecord((current) => {
         if (!value) return null
         if (!current || current.id !== value.id) return value
@@ -98,6 +109,7 @@ export function Detail({ artifactId, storage, token, onPreviewFrame, onClose, on
       setStatus(value ? 'ready' : 'missing')
     }
     const acceptShare = (value) => {
+      noteObserved('share', value)
       if (value) {
         setShare(value)
         setShareKnown(true)
@@ -124,20 +136,20 @@ export function Detail({ artifactId, storage, token, onPreviewFrame, onClose, on
     })
     detailSyncRef.current = sync
     sync.start()
-    const refresh = (options) => {
-      if (document.visibilityState !== 'hidden') void sync.refresh(options)
-    }
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') refresh({ forceShare: true })
-    }
-    const onFocus = () => refresh({ forceShare: true })
-    const timer = window.setInterval(refresh, 3500)
-    window.addEventListener('focus', onFocus)
-    document.addEventListener('visibilitychange', onVisibility)
+    // Each tick reports what was observed since the previous one instead of
+    // awaiting its reads, so one stalled read never stalls the poll; the record
+    // and share paths stay independent. A return to view or focus also
+    // re-checks a share the gate would skip.
+    const poll = pollWhileVisible(({ resumed }) => {
+      const changed = observedChange
+      observedChange = false
+      void sync.refresh({ forceShare: resumed })
+      return changed
+    })
+    window.addEventListener('focus', poll.poke)
     return () => {
-      window.clearInterval(timer)
-      window.removeEventListener('focus', onFocus)
-      document.removeEventListener('visibilitychange', onVisibility)
+      poll.stop()
+      window.removeEventListener('focus', poll.poke)
       if (detailSyncRef.current === sync) detailSyncRef.current = null
       sync.dispose()
     }

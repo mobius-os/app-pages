@@ -280,6 +280,7 @@ test('the share flow reflects live state before persisting the record', async ()
 test('detail delegates polling ownership and local share mutations to one synchronizer', async () => {
   const source = await readSource('ui/Detail.jsx')
   assert.match(source, /createDetailSync\(\{/)
-  assert.match(source, /refresh\(\{ forceShare: true \}\)/)
+  // A return to view or focus (`resumed`) forces the share re-check.
+  assert.match(source, /refresh\(\{ forceShare: resumed \}\)/)
   assert.match(source, /detailSyncRef\.current\.acceptLocalShare\(next\)/)
 })
