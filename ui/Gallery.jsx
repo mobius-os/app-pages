@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { friendlyLoadError, isValidProjectId } from '../domain.js'
 import { ArtifactCard } from './ArtifactCard.jsx'
 import { Empty, LoadError } from './Empty.jsx'
-import { folderSignature, readFolder, reuseRecordList, reuseRecordMap } from './catalogSnapshot.js'
+import { reuseRecordList, reuseRecordMap } from './catalogSnapshot.js'
 import { SKILLS_ICON } from './skillIcon.js'
-import { startAdaptivePoll, watchFrameVisibility } from './adaptivePoll.js'
+import { pollWhileVisible } from './adaptivePoll.js'
 
 function recordDate(record) {
   const date = new Date(record.updated_at || record.created_at || 0)
@@ -44,6 +44,24 @@ function groupArtifacts(artifacts) {
   return groups
 }
 
+async function readFolder(storage, prefix) {
+  const entries = await storage.list(prefix, { includeContent: true })
+  const values = await Promise.all(entries.map(async (entry) => {
+    const path = entry?.path || (entry?.name ? `${prefix}${entry.name}` : null)
+    if (typeof path !== 'string' || !path.endsWith('.json')) return null
+    if (entry?.content !== undefined) {
+      if (typeof entry.content !== 'string') return entry.content
+      try {
+        return JSON.parse(entry.content)
+      } catch {
+        return null
+      }
+    }
+    return storage.getFresh(path).catch(() => null)
+  }))
+  return values.filter((value) => value && typeof value === 'object')
+}
+
 export function Gallery({ appId, storage, onOpen, inactive = false }) {
   const [artifacts, setArtifacts] = useState([])
   const [iconOk, setIconOk] = useState(true)
@@ -53,21 +71,20 @@ export function Gallery({ appId, storage, onOpen, inactive = false }) {
   const [error, setError] = useState('')
   const loadId = useRef(0)
   const loading = useRef(false)
+  const lastSeen = useRef('')
 
-  // Resolves true when the artifact or share listing changed since last time.
+  // Resolves true when the catalogue or its share badges changed since the
+  // previous load, which keeps the poll at its fast cadence.
   const load = useCallback(async () => {
-    if (loading.current) return false
+    if (loading.current) return
     loading.current = true
     const id = ++loadId.current
-    const before = `${folderSignature(storage, 'artifacts/')}\n${folderSignature(storage, 'shares/')}`
     try {
       const allRecords = await readFolder(storage, 'artifacts/')
       // Sharing badges enrich the catalogue but never own it. If that folder
       // is temporarily unavailable, every artifact must still be accessible.
-      // Pages writes share rows itself, so a publish or stop still queued
-      // offline is only visible in the listing's content.
-      const shareRecords = await readFolder(storage, 'shares/', { withContent: true }).catch(() => [])
-      if (id !== loadId.current) return false
+      const shareRecords = await readFolder(storage, 'shares/').catch(() => [])
+      if (id !== loadId.current) return
       // A record's own `id` is interpolated into storage paths and request URLs
       // downstream, and only deep-linked ids were validated before. Drop any
       // record whose id isn't a plain artifact id so a malformed one (e.g.
@@ -78,6 +95,9 @@ export function Gallery({ appId, storage, onOpen, inactive = false }) {
         const left = new Date(a.updated_at || a.created_at || 0).getTime()
         return right - left
       })
+      const seen = JSON.stringify([records, shareRecords])
+      const changed = seen !== lastSeen.current
+      lastSeen.current = seen
       const nextShares = new Map(shareRecords.map((share) => [share.project_id, share]))
       setArtifacts((current) => reuseRecordList(current, records))
       setShares((current) => reuseRecordMap(current, nextShares))
@@ -85,15 +105,14 @@ export function Gallery({ appId, storage, onOpen, inactive = false }) {
       setError('')
       // Projects enriches the gallery; a missing or older host never blocks Pages.
       const sources = await window.mobius?.projects?.importSources?.().catch(() => []) || []
-      if (id !== loadId.current) return false
+      if (id !== loadId.current) return
       setImportable(new Set(sources.map(source => String(source.id))))
-      return before !== `${folderSignature(storage, 'artifacts/')}\n${folderSignature(storage, 'shares/')}`
+      return changed
     } catch (cause) {
-      if (id !== loadId.current) return false
+      if (id !== loadId.current) return
       console.error('Could not load the artifact gallery.', cause)
       setError(friendlyLoadError(cause))
       setStatus((current) => current === 'ready' ? 'ready' : 'error')
-      return false
     } finally {
       loading.current = false
     }
@@ -109,22 +128,12 @@ export function Gallery({ appId, storage, onOpen, inactive = false }) {
   useEffect(() => {
     if (inactive) return undefined
     load()
-    let poll = null
-    const visibility = watchFrameVisibility((visible) => {
-      if (visible) refreshVisible()
-    })
-    poll = startAdaptivePoll(() => (visibility.isVisible() ? load() : false))
-    function refreshVisible() {
-      if (!visibility.isVisible()) return
-      poll?.poke()
-      load()
-    }
-    window.addEventListener('focus', refreshVisible)
+    const poll = pollWhileVisible(load)
+    window.addEventListener('focus', poll.poke)
     return () => {
       loadId.current += 1
       poll.stop()
-      visibility.stop()
-      window.removeEventListener('focus', refreshVisible)
+      window.removeEventListener('focus', poll.poke)
     }
   }, [inactive, load])
 

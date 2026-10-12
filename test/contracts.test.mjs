@@ -128,8 +128,8 @@ test('gallery preview enrichment cannot make the artifact catalogue unavailable'
   const gallery = await readSource('ui/Gallery.jsx')
   assert.match(
     gallery,
-    /readFolder\(storage, 'shares\/', \{ withContent: true \}\)\.catch\(\(\) => \[\]\)/,
-    'sharing badges must fail open so records remain accessible, and show queued local publish/stop values',
+    /readFolder\(storage, 'shares\/'\)\.catch\(\(\) => \[\]\)/,
+    'sharing badges must fail open so records remain accessible',
   )
 
   const thumbnail = await readSource('ui/ArtifactThumbnail.jsx')
@@ -280,6 +280,7 @@ test('the share flow reflects live state before persisting the record', async ()
 test('detail delegates polling ownership and local share mutations to one synchronizer', async () => {
   const source = await readSource('ui/Detail.jsx')
   assert.match(source, /createDetailSync\(\{/)
-  assert.match(source, /refresh\(\{ forceShare: true \}\)/)
+  // A return to view or focus (`resumed`) forces the share re-check.
+  assert.match(source, /refresh\(\{ forceShare: resumed \}\)/)
   assert.match(source, /detailSyncRef\.current\.acceptLocalShare\(next\)/)
 })

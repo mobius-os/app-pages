@@ -7,88 +7,66 @@
 export const POLL_MIN_MS = 3500
 export const POLL_MAX_MS = 10000
 
-// `tick` resolves true when it observed a change. Errors count as no change,
-// and so does a tick still pending after `minMs`: one hung read must not stop
-// the poll, so the next tick runs anyway and callers dedupe overlapping work.
-// `poke()` returns to the fast cadence, for focus and visibility returns.
-export function startAdaptivePoll(tick, { minMs = POLL_MIN_MS, maxMs = POLL_MAX_MS } = {}) {
-  let delay = minMs
-  let timer = null
-  let stopped = false
-
-  function settledTick() {
-    let bound = null
-    const pending = new Promise((resolve) => { bound = setTimeout(resolve, minMs, false) })
-    return Promise.race([tick(), pending]).finally(() => clearTimeout(bound))
-  }
-
-  const schedule = () => {
-    if (!stopped) timer = setTimeout(run, delay)
-  }
-
-  async function run() {
-    timer = null
-    let changed = false
-    try {
-      changed = (await settledTick()) === true
-    } catch {
-      changed = false
-    }
-    if (stopped) return
-    delay = changed ? minMs : Math.min(maxMs, delay * 2)
-    schedule()
-  }
-
-  schedule()
-  return {
-    poke() {
-      delay = minMs
-      if (timer !== null) {
-        clearTimeout(timer)
-        schedule()
-      }
-    },
-    stop() {
-      stopped = true
-      if (timer !== null) clearTimeout(timer)
-      timer = null
-    },
-  }
+// Calls `cb(visible)` now and on every change. Möbius keeps hidden app frames
+// loaded while `document.visibilityState` stays "visible", so the runtime's
+// frame signal is preferred; older hosts fall back to the document.
+function onFrameVisibility(cb, mobius, doc) {
+  if (mobius?.runtimeFeatures?.frameVisibility) return mobius.onVisibilityChange(cb)
+  const report = () => cb(doc.visibilityState !== 'hidden')
+  report()
+  doc.addEventListener('visibilitychange', report)
+  return () => doc.removeEventListener('visibilitychange', report)
 }
 
-// Whether the owner can see this frame, and a callback on each change.
-// Möbius keeps hidden app frames loaded while `document.visibilityState` stays
-// "visible", so the runtime's frame signal is preferred; older hosts without
-// `runtimeFeatures.frameVisibility` fall back to the document signal.
-export function watchFrameVisibility(
-  onChange,
-  { mobius = globalThis.window?.mobius, doc = globalThis.document } = {},
-) {
-  if (mobius?.runtimeFeatures?.frameVisibility && typeof mobius.onVisibilityChange === 'function') {
-    let visible = mobius.visible !== false
-    let subscribed = false
-    const unsubscribe = mobius.onVisibilityChange((next) => {
-      const was = visible
-      visible = next !== false
-      // The runtime reports the current state on subscribe; only changes count.
-      if (subscribed && visible !== was) onChange(visible)
-    })
-    subscribed = true
-    return {
-      isVisible: () => visible,
-      stop: () => { if (typeof unsubscribe === 'function') unsubscribe() },
-    }
+// Runs `tick({ resumed })` while the frame is visible. `tick` resolves true when
+// it observed a change. After a change the next tick is `minMs` away; each
+// unchanged tick doubles the wait up to `maxMs`. A return to view and `poke()`
+// (for focus) tick at once with `resumed: true` and restore the fast cadence.
+export function pollWhileVisible(tick, {
+  minMs = POLL_MIN_MS,
+  maxMs = POLL_MAX_MS,
+  mobius = globalThis.window?.mobius,
+  doc = globalThis.document,
+} = {}) {
+  let timer = null
+  let run = 0 // bumped on every restart and stop so a superseded loop ends
+  let visible = false
+  let started = false
+
+  function schedule(mine, wait) {
+    timer = setTimeout(() => loop(mine, Math.min(maxMs, wait * 2), false), wait)
   }
-  const isVisible = () => doc?.visibilityState !== 'hidden'
-  let visible = isVisible()
-  const listener = () => {
-    const was = visible
-    visible = isVisible()
-    if (visible !== was) onChange(visible)
+
+  async function loop(mine, idleWait, resumed) {
+    let changed = false
+    try {
+      changed = (await tick({ resumed })) === true
+    } catch {}
+    if (mine === run) schedule(mine, changed ? minMs : idleWait)
   }
-  doc?.addEventListener?.('visibilitychange', listener)
+
+  function restart(immediately) {
+    clearTimeout(timer)
+    run += 1
+    if (!visible) return
+    if (immediately) void loop(run, minMs, true)
+    else schedule(run, minMs)
+  }
+
+  const unsubscribe = onFrameVisibility((next) => {
+    if (started && next === visible) return
+    visible = next
+    // The first report only starts the cadence; the view loads itself on mount.
+    restart(started)
+    started = true
+  }, mobius, doc)
+
   return {
-    isVisible: () => visible,
-    stop: () => doc?.removeEventListener?.('visibilitychange', listener),
+    poke: () => restart(true),
+    stop() {
+      run += 1
+      clearTimeout(timer)
+      unsubscribe()
+    },
   }
 }
