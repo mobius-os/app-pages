@@ -18,10 +18,11 @@ function onFrameVisibility(cb, mobius, doc) {
   return () => doc.removeEventListener('visibilitychange', report)
 }
 
-// Runs `tick({ resumed })` while the frame is visible. `tick` resolves true when
-// it observed a change. After a change the next tick is `minMs` away; each
-// unchanged tick doubles the wait up to `maxMs`. A return to view and `poke()`
-// (for focus) tick at once with `resumed: true` and restore the fast cadence.
+// Runs `tick({ resumed })` while the frame is visible. `tick` returns (or
+// resolves) true when it observed a change. After a change the next tick is
+// `minMs` away; each unchanged tick doubles the wait up to `maxMs`. A return to
+// view and `poke()` (for focus) tick at once with `resumed: true` and restore
+// the fast cadence.
 export function pollWhileVisible(tick, {
   minMs = POLL_MIN_MS,
   maxMs = POLL_MAX_MS,

@@ -136,11 +136,15 @@ export function Detail({ artifactId, storage, token, onPreviewFrame, onClose, on
     })
     detailSyncRef.current = sync
     sync.start()
-    // A return to view or focus also re-checks a share the gate would skip.
-    const poll = pollWhileVisible(async ({ resumed }) => {
+    // Each tick reports what was observed since the previous one instead of
+    // awaiting its reads, so one stalled read never stalls the poll; the record
+    // and share paths stay independent. A return to view or focus also
+    // re-checks a share the gate would skip.
+    const poll = pollWhileVisible(({ resumed }) => {
+      const changed = observedChange
       observedChange = false
-      await sync.refresh({ forceShare: resumed })
-      return observedChange
+      void sync.refresh({ forceShare: resumed })
+      return changed
     })
     window.addEventListener('focus', poll.poke)
     return () => {
