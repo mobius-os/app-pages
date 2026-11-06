@@ -18,7 +18,10 @@ without the Projects interface.
 Use a page when the partner explicitly requests a mockup, diagram,
 comparison, visualization, or shareable report, or when a small visual would
 materially clarify a genuinely complex choice better than concise prose. Read
-`pages.md` before creating or updating one.
+`pages.md` before creating or updating one. After creating or updating a
+page, always show its Open link
+(`/shell/?app=pages&intent=artifact:<artifact_id>`) in visible reply text,
+before any question or approval card that ends the turn.
 
 When the material choice is primarily visual, spatial, or comparative and a
 preview would materially improve the partner's feedback, suggest a page
