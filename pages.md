@@ -309,18 +309,18 @@ offline.
 
 ## Link it back in the chat
 
-Every turn that creates or updates a page shows its Open link in **visible
-reply text**. The shell opens it in place:
+Every turn that creates or updates a page shows its Open link in your
+**closing message**. The shell opens it in place:
 
 ```
 [Open "Tip Calculator" →](/shell/?app=pages&intent=artifact:<artifact_id>)
 ```
 
-If the turn ends with a question or approval card (for example "which option
-should I build?"), write the link in the visible text **before** calling the
-card tool. The card must be the last action and nothing can follow it, so a
-link left for "the end" gets dropped. A card's question text is no substitute
-either. Never end with "Publishing it to Pages:" and no link.
+When the turn ends with a question or approval card (for example "which
+option should I build?"), the closing message is the card's `message`, which
+appears directly above the card. Text written before the call also works. The
+card's question text does not. Never end with "Publishing it to Pages:" and no
+link.
 
 Also send the durable notification so the partner can tap in later. It does
 not replace the in-chat link: Möbius skips a push while the partner is
@@ -340,8 +340,8 @@ mapi -f -X POST /api/notifications/send \
 
 | If this turn… | Do before finishing |
 |---|---|
-| Built a page | Verify both files exist and the record parses (`python3 -m json.tool`); reply in partner language (what it does, not how it's stored); put the Open link in visible text, before any question card; send the notification. |
-| Iterated one | Confirm `current_version` bumped and the new `v<N>.html` exists; say what changed; re-link it in visible text, before any question card. If it was shared, mention the Share sheet can update the public version. |
+| Built a page | Verify both files exist and the record parses (`python3 -m json.tool`); reply in partner language (what it does, not how it's stored); put the Open link in the closing message (the card's `message` when a card ends the turn); send the notification. |
+| Iterated one | Confirm `current_version` bumped and the new `v<N>.html` exists; say what changed; re-link it in the closing message. If it was shared, mention the Share sheet can update the public version. |
 | Hit a gotcha | Log it the usual way so future-you avoids it. |
 
 Sharing, version browsing, downloading, deletion, and importing into Projects
