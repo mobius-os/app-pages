@@ -18,7 +18,9 @@ without the Projects interface.
 Use a page when the partner explicitly requests a mockup, diagram,
 comparison, visualization, or shareable report, or when a small visual would
 materially clarify a genuinely complex choice better than concise prose. Read
-`pages.md` before creating or updating one.
+`pages.md` before creating or updating one. After creating or updating a
+page, always show its Open link in your visible closing message (see
+`pages.md`).
 
 When the material choice is primarily visual, spatial, or comparative and a
 preview would materially improve the partner's feedback, suggest a page
