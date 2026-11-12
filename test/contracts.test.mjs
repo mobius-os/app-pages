@@ -71,6 +71,15 @@ test('manifest keeps the Pages system prompt wiring', async () => {
   assert.ok(manifest.source_files.includes('pages-core.md'))
 })
 
+test('pages skill keeps its publish guards and tells a collision to merge', async () => {
+  const skill = await readSource('pages.md')
+  assert.match(skill, /test -s page\.html/)
+  assert.match(skill, /\[ "\$CUR" != "\$BASE" \]/)
+  assert.match(skill, /another chat published from v\$BASE; re-read v\$NEXT, merge, retry/)
+  assert.doesNotMatch(skill, /retry with the next number/)
+  assert.match(skill, /node", "--check"/)
+})
+
 test('storage bridge identifies only the mounted opaque preview frame', async () => {
   const source = await readSource('index.jsx')
   assert.match(source, /event\.source !== mounted\.frame\.contentWindow/)
