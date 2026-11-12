@@ -192,11 +192,15 @@ DESC="Split a bill and compute per-person tips."
 RELATED_APPS_JSON='[]'
 
 mkdir -p "$D/versions/$AID" "$D/artifacts"
+# guard the source first — noclobber only catches an existing destination, so
+# an empty or missing page.html would otherwise publish a 0-byte version.
+test -s page.html || { echo "page.html is empty or missing — nothing published"; exit 1; }
 # exclusive create — noclobber makes `>` fail instead of overwriting; a
 # collision means mint a fresh id and retry rather than clobber someone's work.
 if ! (set -o noclobber; cat page.html > "$D/versions/$AID/v1.html") 2>/dev/null; then
   echo "v1 already exists for $AID — mint a new id and retry"; exit 1
 fi
+test -s "$D/versions/$AID/v1.html" || { echo "published blob is empty — remove it and retry"; exit 1; }
 
 python3 - "$D/artifacts/$AID.json" "$AID" "$TITLE" "$DESC" "$CHAT_ID" "$NOW" \
          "$D/versions/$AID/v1.html" "$RELATED_APPS_JSON" <<'PY'
@@ -239,9 +243,19 @@ Find the id first: it is in your earlier reply's link, or list
 
 ```bash
 REC="$D/artifacts/$AID.json"
-NEXT=$(python3 -c "import json; print(json.load(open('$REC'))['current_version']+1)")
+# BASE is the version your edits were built on — record it when you read the
+# page, before editing. noclobber only guards the exact next number: if another
+# chat published v14–v15 while you edited from v13, your v16 would be free and
+# would silently discard their changes. Compare before publishing.
+BASE=13   # the version you started from
+CUR=$(python3 -c "import json; print(json.load(open('$REC'))['current_version'])")
+if [ "$CUR" != "$BASE" ]; then
+  echo "page advanced to v$CUR while editing from v$BASE — re-read v$CUR, merge, retry"; exit 1
+fi
+NEXT=$((CUR + 1))
 DEST="$D/versions/$AID/v$NEXT.html"
 NOTE="dark theme + rounding"
+test -s page.html || { echo "page.html is empty or missing"; exit 1; }
 # exclusive create — if a concurrent turn already took v$NEXT, `>` fails here
 # (no torn overwrite of immutable history); re-read the record and retry.
 if ! (set -o noclobber; cat page.html > "$DEST") 2>/dev/null; then
@@ -283,7 +297,11 @@ the app's Share sheet.
   color; a game or showpiece earns a scene. Don't over-design utility pages,
   don't under-design the centerpiece. Real content throughout — never lorem.
 - **Robust.** Wrap risky JS in try/catch and render a visible fallback message;
-  a crashed page must not be blank.
+  a crashed page must not be blank. A try/catch cannot catch a **parse** error:
+  one unescaped apostrophe closing a single-quoted string stops the whole
+  inline `<script>` from running and the page renders blank. Before publishing
+  a page with non-trivial inline JS, syntax-check it — extract the script and
+  run `node --check` on it.
 - **Lean.** Keep the file well under 50 MB (large `data:` assets count) — the
   storage tree is capped at 1 GB; prefer SVG and generated canvas over big
   base64 blobs.
