@@ -192,6 +192,9 @@ DESC="Split a bill and compute per-person tips."
 RELATED_APPS_JSON='[]'
 
 mkdir -p "$D/versions/$AID" "$D/artifacts"
+# guard the source first — noclobber only catches an existing destination, so
+# an empty or missing page.html would otherwise publish a 0-byte version.
+test -s page.html || { echo "page.html is empty or missing — nothing published"; exit 1; }
 # exclusive create — noclobber makes `>` fail instead of overwriting; a
 # collision means mint a fresh id and retry rather than clobber someone's work.
 if ! (set -o noclobber; cat page.html > "$D/versions/$AID/v1.html") 2>/dev/null; then
@@ -232,20 +235,33 @@ Find the id first: it is in your earlier reply's link, or list
 `$D/artifacts/` and match by title or `chat_id`. Then:
 
 1. **Reuse the same `artifact_id`** — a new id would create a second page
-   instead of a new version.
+   instead of a new version. When you first read the page, note its
+   `current_version` as `BASE`: it is the version your edits are built on.
 2. **Never overwrite an existing `v<N>.html`** — history is immutable. Write
    the next free version number, and refuse to clobber if it already exists
    (a concurrent turn may have taken it):
 
 ```bash
 REC="$D/artifacts/$AID.json"
-NEXT=$(python3 -c "import json; print(json.load(open('$REC'))['current_version']+1)")
+# BASE is the version your edits were built on — record it when you read the
+# page, before editing. noclobber only guards the exact next number: if another
+# chat published v14–v15 while you edited from v13, your v16 would be free and
+# would silently discard their changes. Compare before publishing.
+BASE=13   # the version you started from
+CUR=$(python3 -c "import json; print(json.load(open('$REC'))['current_version'])")
+if [ "$CUR" != "$BASE" ]; then
+  echo "page advanced to v$CUR while editing from v$BASE — re-read v$CUR, merge, retry"; exit 1
+fi
+NEXT=$((CUR + 1))
 DEST="$D/versions/$AID/v$NEXT.html"
 NOTE="dark theme + rounding"
+test -s page.html || { echo "page.html is empty or missing"; exit 1; }
 # exclusive create — if a concurrent turn already took v$NEXT, `>` fails here
-# (no torn overwrite of immutable history); re-read the record and retry.
+# (no torn overwrite of immutable history). That means another chat published
+# from the same base: read their v$NEXT, merge it into your edits, then retry —
+# never just bump BASE, which would discard their changes.
 if ! (set -o noclobber; cat page.html > "$DEST") 2>/dev/null; then
-  echo "v$NEXT already exists — re-read the record and retry with the next number"; exit 1
+  echo "v$NEXT already exists — another chat published from v$BASE; re-read v$NEXT, merge, retry"; exit 1
 fi
 python3 - "$REC" "$DEST" "$NEXT" "$NOTE" "$CHAT_ID" <<'PY'
 import json, os, sys, datetime
@@ -259,8 +275,13 @@ tmp = f"{rec}.{os.getpid()}.tmp"; json.dump(d, open(tmp, "w")); os.replace(tmp, 
 PY
 ```
 
-3. Read the record fresh before appending (a different chat may have added a
-   version) and bump `current_version` + `updated_at`.
+3. The block compares the record with `BASE` right before publishing, and the
+   Python step re-reads it fresh to append (bumping `current_version` +
+   `updated_at`). If either the comparison or the exclusive create refuses,
+   a different chat published from the same base: read its newer version,
+   merge its changes into yours, set `BASE` to the version you merged onto and
+   retry. Do not just raise `BASE` or the version number — that brings back the
+   lost update these checks exist to stop.
 
 If the partner shared the page publicly, the shared copy keeps showing the
 version it was shared at — tell them they can update the shared version from
@@ -283,12 +304,44 @@ the app's Share sheet.
   color; a game or showpiece earns a scene. Don't over-design utility pages,
   don't under-design the centerpiece. Real content throughout — never lorem.
 - **Robust.** Wrap risky JS in try/catch and render a visible fallback message;
-  a crashed page must not be blank.
+  a crashed page must not be blank. A try/catch cannot catch a **parse** error:
+  one unescaped apostrophe closing a single-quoted string stops the whole
+  inline `<script>` from running and the page renders blank. Before publishing
+  a page with non-trivial inline JS, syntax-check it (recipe below).
 - **Lean.** Keep the file well under 50 MB (large `data:` assets count) — the
   storage tree is capped at 1 GB; prefer SVG and generated canvas over big
   base64 blobs.
 - **Title it like a product** ("Berlin Marathon Pacing", not "chart-v2") and
   give the record a one-line description — both show in the gallery.
+
+### Syntax-check inline JS before publishing
+
+Run this on `page.html`; a non-zero exit means a script has a parse error —
+fix it before publishing. It checks only inline JavaScript (no `src`, type
+absent, `text/javascript` or `module`) and skips JSON-LD, import maps and
+templates.
+
+```bash
+python3 - page.html <<'PY'
+import os, re, subprocess, sys, tempfile
+html = open(sys.argv[1], encoding="utf-8").read()
+failed = False
+for attrs, body in re.findall(r"<script\b([^>]*)>(.*?)</script>", html, re.S | re.I):
+    m = re.search(r"type\s*=\s*[\"']?([^\"'\s>]+)", attrs, re.I)
+    kind = m.group(1).lower() if m else "text/javascript"
+    if "src=" in attrs.lower() or not body.strip() or kind not in ("text/javascript", "module"):
+        continue
+    ext = ".mjs" if kind == "module" else ".cjs"
+    with tempfile.NamedTemporaryFile("w", suffix=ext, delete=False) as f:
+        f.write(body)
+    r = subprocess.run(["node", "--check", f.name], capture_output=True, text=True)
+    os.unlink(f.name)
+    if r.returncode:
+        failed = True
+        print(r.stderr)
+sys.exit(1 if failed else 0)
+PY
+```
 
 ### Documents and reports
 
