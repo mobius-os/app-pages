@@ -77,7 +77,12 @@ test('pages skill keeps its publish guards and tells a collision to merge', asyn
   assert.match(skill, /\[ "\$CUR" != "\$BASE" \]/)
   assert.match(skill, /another chat published from v\$BASE; re-read v\$NEXT, merge, retry/)
   assert.doesNotMatch(skill, /retry with the next number/)
-  assert.match(skill, /node", "--check"/)
+  // Classic scripts compile as a browser Script, never in Node's CommonJS wrapper,
+  // and <script> elements are found by a real HTML parser, not a regex.
+  assert.match(skill, /new vm\.Script\(/)
+  assert.match(skill, /\["node", "--check"\] if k == "module"/)
+  assert.match(skill, /from html\.parser import HTMLParser/)
+  assert.doesNotMatch(skill, /\.cjs"|re\.findall\(r"<script/)
 })
 
 test('storage bridge identifies only the mounted opaque preview frame', async () => {

@@ -317,28 +317,87 @@ the app's Share sheet.
 ### Syntax-check inline JS before publishing
 
 Run this on `page.html`; a non-zero exit means a script has a parse error —
-fix it before publishing. It checks only inline JavaScript (no `src`, type
-absent, `text/javascript` or `module`) and skips JSON-LD, import maps and
-templates.
+fix it before publishing. It reads `<script>` elements with a real HTML parser
+and decides which ones run the way a browser does: no `src` attribute; `type`
+absent, empty, a JavaScript MIME type, or `module`. Data blocks (JSON-LD,
+import maps, `text/template`, even `text/javascript; charset=…` — browsers
+do not run a type with parameters, so it only warns), commented-out scripts,
+`<template>` content and text that only looks like a script (inside
+`<textarea>`, `<title>`, `<noscript>` or after `<plaintext>`) are skipped.
+A repeated attribute keeps its first value and `<script/>` still opens a
+script, as in browsers. Classic scripts are compiled as a browser compiles
+them, as a plain script: `module` or `require` are ordinary names, and a top-level
+`return` or `await` is an error. Do not swap in `node --check` on a `.js` or
+`.cjs` file — Node wraps that in CommonJS and gets both cases wrong. Modules
+are checked as ES modules.
 
 ```bash
 python3 - page.html <<'PY'
-import os, re, subprocess, sys, tempfile
-html = open(sys.argv[1], encoding="utf-8").read()
+import os, subprocess, sys, tempfile
+from html.parser import HTMLParser
+CLASSIC = ["node", "-e", 'const fs = require("fs"), vm = require("vm"), f = process.argv[1];'
+           'try { new vm.Script(fs.readFileSync(f, "utf8"), { filename: f }) }'
+           'catch (e) { console.error(e.stack || String(e)); process.exit(1) }']
+JS_MIME = {"application/ecmascript", "application/javascript", "application/x-ecmascript",
+           "application/x-javascript", "text/ecmascript", "text/javascript", "text/jscript",
+           "text/livescript", "text/x-ecmascript", "text/x-javascript",
+           *(f"text/javascript1.{n}" for n in range(6))}
+
+def kind(attrs):                      # the HTML spec's script-type rules
+    a = {}
+    for k, v in attrs: a.setdefault(k.lower(), v or "")  # a duplicate attribute: the first wins
+    if "src" in a: return None, None  # external: the inline text never runs
+    if "type" in a: t = a["type"].strip(" \t\n\f\r").lower()
+    elif a.get("language"): t = "text/" + a["language"].lower()
+    else: t = ""
+    if t == "" or t in JS_MIME: return "classic", None
+    if t == "module": return "module", None
+    if t.split(";")[0].strip() in JS_MIME:  # browsers treat this as data: never compiled
+        return None, f"type={t!r} has parameters, so browsers will not run this script"
+    return None, None                 # importmap, JSON-LD, templates: data, not code
+
+class Scripts(HTMLParser):
+    # Elements whose content is text, never markup, in a scripting browser: a
+    # <script> written inside <textarea>, <title> or <noscript> is not a script.
+    CDATA_CONTENT_ELEMENTS = ("script", "style", "xmp", "iframe", "noembed", "noframes",
+                              "noscript", "textarea", "title")
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.found, self.open, self.template, self.stopped = [], None, 0, False
+    def handle_startendtag(self, tag, attrs):     # browsers ignore "/>" on these,
+        self.handle_starttag(tag, attrs)           # so <script/>x still opens a script
+        if tag in self.CDATA_CONTENT_ELEMENTS: self.set_cdata_mode(tag)
+        elif tag not in ("template", "plaintext"): self.handle_endtag(tag)
+    def handle_starttag(self, tag, attrs):
+        if self.stopped: return
+        if tag == "plaintext": self.stopped = True  # the rest of the file is text
+        elif tag == "template": self.template += 1
+        elif tag == "script": self.open = (kind(attrs), self.getpos()[0], [])
+    def handle_endtag(self, tag):
+        if tag == "template": self.template = max(0, self.template - 1)
+        elif tag == "script" and self.open: self.finish()
+    def handle_data(self, data):
+        if self.open: self.open[2].append(data)
+    def finish(self):
+        (k, warning), line, parts = self.open
+        if warning and not self.template: print(f"line {line}: warning: {warning}")
+        if k and not self.template: self.found.append((k, line, "".join(parts)))
+        self.open = None
+
+p = Scripts(); p.feed(open(sys.argv[1], encoding="utf-8").read()); p.close()
+if p.open: p.finish()                 # an unclosed script runs to end of file
 failed = False
-for attrs, body in re.findall(r"<script\b([^>]*)>(.*?)</script>", html, re.S | re.I):
-    m = re.search(r"type\s*=\s*[\"']?([^\"'\s>]+)", attrs, re.I)
-    kind = m.group(1).lower() if m else "text/javascript"
-    if "src=" in attrs.lower() or not body.strip() or kind not in ("text/javascript", "module"):
-        continue
-    ext = ".mjs" if kind == "module" else ".cjs"
-    with tempfile.NamedTemporaryFile("w", suffix=ext, delete=False) as f:
+for k, line, body in p.found:
+    if not body.strip(): continue
+    with tempfile.NamedTemporaryFile("w", suffix=".mjs" if k == "module" else ".js",
+                                     delete=False) as f:
         f.write(body)
-    r = subprocess.run(["node", "--check", f.name], capture_output=True, text=True)
+    cmd = ["node", "--check"] if k == "module" else CLASSIC
+    r = subprocess.run(cmd + [f.name], capture_output=True, text=True)
     os.unlink(f.name)
     if r.returncode:
         failed = True
-        print(r.stderr)
+        print(f"<script> at line {line}:\n{r.stderr}")
 sys.exit(1 if failed else 0)
 PY
 ```
