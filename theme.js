@@ -553,10 +553,10 @@ export const CSS = `
 .af-share-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
 .af-share-heading p { margin: 0.375rem 0 0; color: var(--muted); font-size: 0.875rem; line-height: 1.5; text-wrap: pretty; }
 .af-share-close { flex: 0 0 auto; margin: -0.3125rem -0.375rem 0 0; }
-.af-share-preview { overflow: hidden; margin: 1rem 0 0; border: 1px solid var(--border); border-radius: 0.875rem; background: #201a3d; box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--text) 8%, transparent); }
+.af-share-preview { overflow: hidden; margin: 1rem 0 0; border: 1px solid var(--border); border-radius: 0.875rem; background: var(--surface-2); box-shadow: 0 0.5rem 1.5rem color-mix(in srgb, var(--text) 8%, transparent); }
 .af-share-preview img { display: block; width: 100%; height: auto; aspect-ratio: 1200 / 630; object-fit: cover; }
-.af-share-preview figcaption { display: flex; align-items: center; justify-content: space-between; padding: 0.625rem 0.75rem; border-top: 1px solid color-mix(in srgb, #fff 14%, transparent); background: color-mix(in srgb, #16122b 94%, transparent); color: #d5cfe2; font-size: 0.75rem; }
-.af-share-preview figcaption strong { color: #fff; font-size: 0.6875rem; letter-spacing: 0.02em; }
+.af-share-preview figcaption { display: flex; align-items: center; justify-content: space-between; padding: 0.625rem 0.75rem; border-top: 1px solid var(--border); background: var(--surface-2); color: var(--muted); font-size: 0.75rem; }
+.af-share-preview figcaption strong { color: var(--text); font-size: 0.6875rem; letter-spacing: 0.02em; }
 .af-share-url { display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0 0; padding: 0.625rem 0.75rem; border: 1px solid var(--border); border-radius: 0.625rem; background: var(--surface-2); }
 .af-share-url span { flex: 1; min-width: 0; overflow: hidden; color: var(--text); font: 500 0.75rem/1.4 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .af-share-primary { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
